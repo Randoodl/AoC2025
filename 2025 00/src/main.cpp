@@ -65,5 +65,7 @@ int main(int argc, char* argv[])
     delete p_InputDataVector;
     p_InputDataVector = nullptr;
 
+    std::cout << "\nTotal runtime: " <<  1.0 * clock() /CLOCKS_PER_SEC << "s\n";
+
     return 0;
 }
