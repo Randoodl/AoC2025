@@ -49,17 +49,17 @@ void PrintTimeNow()
 
 int main(int argc, char* argv[])
 {  
+    //Keep track of if this run should be timed or not, default is False
+    int Timed {0};
+    if(argc >= 3){Timed = std::stoi(argv[2]);}
+    if(Timed){PrintTimeNow();}
+    
     //The Puzzle Input Data as a POINTER to a vector of strings
     std::vector<std::string>* p_InputDataVector {GetFileData(argv[1])};
 
     //Quick test to see if vector loaded correctly
     std::cout << "First Line: " << p_InputDataVector->front() << std::endl;
     std::cout << "Last Line:  " << p_InputDataVector->back() << std::endl;
-
-    //Keep track of if this run should be timed or not, default is False
-    int Timed {0};
-    if(argc >= 3){Timed = std::stoi(argv[2]);}
-    if(Timed){PrintTimeNow();}
 
     //Cleaning up
     delete p_InputDataVector;
