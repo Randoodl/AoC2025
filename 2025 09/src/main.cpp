@@ -1,14 +1,20 @@
 /*
-Problem 1 approach:
-    Loop through each line in the input file and from each following line get the absolute differences in X and Y.
-    Use these absolute X and Y values to calculate, and keep track of, the largest area
-    No need to check every line against every other line, since a -> b == a <- b
+General problem approach:   
+    Generate a map of all areas per tiles pair
+        i.e.  Map[50] = {{2,5},{11,1}}
     
-    Remember that the difference has to be +1'd, since a point itself is already a 1x1 square
+    By definition, the largest possible area is the last entry in the map
+    >This will answer problem 1
 
-    Keep track of the largest area
+    For problem 2, generate all green tiles by just marching through the tile coordinates
+    Now, for each area as listed in the previously generated map, starting at the largest area
 
-Will need to revisit this in the future to properly solve problem 2
+        1. Get the coordinates for the area 
+        2. Check if ANY of the green tiles are within the area (perimeter is ok)
+            if so: the perimeter dissects the area and therefore the area cannot be valid, break
+        3. first pair of tiles to create an area which is not dissected by green tiles is, by definition, the largest possible area
+        4. Weep, because this seems like a daft way to sledgehammer this problem
+
 */
 
 #include <iostream>
@@ -17,6 +23,8 @@ Will need to revisit this in the future to properly solve problem 2
 #include <string>
 #include <ctime>
 #include <sstream>
+#include <map>
+#include <algorithm>
 
 
 std::vector<std::string>* GetFileData(std::string DataPath)
@@ -57,14 +65,14 @@ void PrintTimeNow()
 }
 
 
-long unsigned int GetSquareArea(std::string& OriginXY, std::string& TerminalXY)
+long unsigned int GetRectArea(std::string OriginXY, std::string ProjectedXY)
 {
-    //Turn the strings into numerical values and get the area between them
+    //Get the area between the two opposite points of a rectangle
 
     //Stores {Xo, Yo, Xt, Yt}
     std::vector<int> ExtractedInts {};
 
-    for(std::string XY : {OriginXY, TerminalXY})
+    for(std::string XY : {OriginXY, ProjectedXY})
     {
         //Isolate the two numerical values
         std::stringstream StringStream(XY);
@@ -74,44 +82,49 @@ long unsigned int GetSquareArea(std::string& OriginXY, std::string& TerminalXY)
             ExtractedInts.emplace_back(std::stoi(IntAsString));
         }
     }
-    
-    //Get the absolute area
-    //+1 the differences, since a tile by itself is already 1x1 
-    long unsigned int Area {(long unsigned int)(1 + std::abs(ExtractedInts[0] - ExtractedInts[2])) * 
-                            (long unsigned int)(1 + std::abs(ExtractedInts[1] - ExtractedInts[3]))};
 
-    return Area;
+    //Remember to +1 the area, as the square itself is already 1x1
+    long unsigned int TotalArea {(long unsigned int)(std::abs(ExtractedInts[0] - ExtractedInts[2]) + 1) *
+                                 (long unsigned int)(std::abs(ExtractedInts[1] - ExtractedInts[3]) + 1) };
+
+    return TotalArea;
 }
 
 
-long unsigned int SolveProblemOne(int& Timed, std::vector<std::string>* p_InputDataVector)
+std::map<long unsigned int, std::vector<std::vector<int>>>* GenerateAreasMap(std::vector<std::string>* p_InputDataVector)
 {
-    if(Timed){std::cout << "Starting Problem One:  ";PrintTimeNow();}
-
-    //Go through each item in the list and then get the absolute differences to each other item
+    //Create a map where each resulting area links to the coordinate pair that constitutes it
+    std::map<long unsigned int, std::vector<std::vector<int>>>* p_AreasMap = new std::map<long unsigned int, std::vector<std::vector<int>>> {};
     
-    //Some bounds data
+    //Bounds data
     int MaxLine {(int)p_InputDataVector->size()};
 
-    //Keep track of values that result in the largest area
-    long unsigned int LargestArea {0};
-
-    //Loop through each line and extract XYs
+    //Get the areas between each coordinate point and the following coordinate points
+    //No need to do each to all each iteration since a -> b is the same as a <- b
     for(int i_Line {0}; i_Line < MaxLine; ++i_Line)
     {
-        //For this line, compare all following lines
-        for(int i_FollowingLine {i_Line + 1}; i_FollowingLine < MaxLine; ++i_FollowingLine)
+        for(int i_FollowingLine {0}; i_FollowingLine < MaxLine; ++i_FollowingLine)
         {
-            long unsigned int Area {GetSquareArea((*p_InputDataVector)[i_Line], (*p_InputDataVector)[i_FollowingLine])};
-
-            if(Area > LargestArea)
-            {
-                LargestArea = Area;
-            }
+            std::vector<int> Lines {i_Line, i_FollowingLine};
+            long unsigned int Area = GetRectArea((*p_InputDataVector)[i_Line], (*p_InputDataVector)[i_FollowingLine]);
+            (*p_AreasMap)[Area].emplace_back(Lines);
         }
     }
 
-    if(Timed){std::cout << "Ending Problem One:    ";PrintTimeNow();}
+    return p_AreasMap;
+}
+
+
+long unsigned int SolveProblemOne(std::map<long unsigned int, std::vector<std::vector<int>>>* p_MapOfPoorLifeChoices)
+{
+    //Look, I made this.
+    // have to live with this.
+    //How do you think >I< feel, writing this?
+
+    //Extract the final key 
+    auto LastPair {std::prev(p_MapOfPoorLifeChoices->end())};
+    long unsigned int LargestArea = LastPair->first;
+
     return LargestArea;
 }
 
@@ -126,11 +139,20 @@ int main(int argc, char* argv[])
     //The Puzzle Input Data as a POINTER to a vector of strings
     std::vector<std::string>* p_InputDataVector {GetFileData(argv[1])};
 
-    std::cout << "Problem One:\n" << SolveProblemOne(Timed, p_InputDataVector) << "\n";
+    //This is a map of all possible areas as constructed from the tiles given in the input, as indices of the tile in said input
+    //It is also the thing that makes me wonder if I should keep trudging on doing AoC puzzles
+    std::map<long unsigned int, std::vector<std::vector<int>>>* p_MapOfPoorLifeChoices {GenerateAreasMap(p_InputDataVector)};
+
+    std::cout << "Problem One:\n" << SolveProblemOne(p_MapOfPoorLifeChoices) << "\n";
+
+    
 
     //Cleaning up
     delete p_InputDataVector;
     p_InputDataVector = nullptr;
+    delete p_MapOfPoorLifeChoices;
+    p_MapOfPoorLifeChoices = nullptr;
+
 
     std::cout << "\nTotal runtime: " <<  1.0 * clock() /CLOCKS_PER_SEC << "s\n";
 
