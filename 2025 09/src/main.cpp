@@ -229,38 +229,37 @@ long unsigned int SolveProblemTwo(int& Timed, std::map<long unsigned int, std::v
     if(Timed){std::cout << "Starting Problem Two:    ";PrintTimeNow();}
     
     //Iterate over the map in reverse order
-    for(auto it {p_MapOfPoorLifeChoices->rbegin()}; it != p_MapOfPoorLifeChoices->rend(); ++it)
+    for(auto IterateRects {p_MapOfPoorLifeChoices->rbegin()}; IterateRects != p_MapOfPoorLifeChoices->rend(); ++IterateRects)
     {
-//std::cout << "..Starting the search for Areas of size: " << it->first << std::endl;
         //For each area, look at each two tiles that make up that area
-        for(std::vector<int> PairOfTileLines : it->second)
+        for(std::vector<int> PairOfTileLines : IterateRects->second)
         {
             bool Fits {true};
 
             std::string Origin  {(*p_InputDataVector)[PairOfTileLines[0]]};
             std::string Project {(*p_InputDataVector)[PairOfTileLines[1]]};
-//std::cout << "....Considering points: (" << Origin << "), (" << Project << ")\n";
+
             //{Xmin, Ymin, Xmax, Ymax}
             std::vector<int> ExtractedInts {GetConnectedTileCoordinates(Origin, Project)};
 
-            //Check EACH KNOWN GREEN TILE if it is within the body of the rect that can be constructed from the connected tiles
+            //Check each green tile between (Xmin,Ymin) and (Xmax,Ymax) if it is within the body of the rect that can be constructed from the connected tiles
             //It is ok to cry
-
-            for(auto GreenTileX : (*p_MapOfGreenTiles))
-            {//std::cout << "......Lookup for X: " << GreenTileX.first << std::endl;
-                if(GreenTileX.first > ExtractedInts[0] && GreenTileX.first < ExtractedInts[2]) 
+            
+            //The downright hamfisted loop here basically means:
+            //Between Xmin and Xmax exclusive, check for green tiles
+            //Exclusive, not inclusive, because we do not care about green tiles in the perimeter
+            for(auto IterateGreenTiles {p_MapOfGreenTiles->find(ExtractedInts[0] + 1)}; IterateGreenTiles != p_MapOfGreenTiles->find(ExtractedInts[2] - 1); ++IterateGreenTiles)
+            {   
+                for(int GreenTileY : IterateGreenTiles->second)
                 {
-                    for(int GreenTileY : GreenTileX.second)
+                    if(GreenTileY > ExtractedInts[1] && GreenTileY < ExtractedInts[3])
                     {
-                        if(GreenTileY > ExtractedInts[1] && GreenTileY < ExtractedInts[3])
-                        {
-                            //std::cout << "........Invalid point: [" << GreenTileX.first << ", " << GreenTileY << "]\n"; 
-                            //There exists a green tile within the body of the rectangle, so it cannot be valid
-                            Fits = false;
-                            break;
-                        }
+                        //There exists a green tile within the body of the rectangle, so it cannot be valid
+                        Fits = false;
+                        break;
                     }
-                } 
+                }
+                
                 if(!Fits)
                 {
                     //stop checking invalid rectangles
@@ -271,11 +270,11 @@ long unsigned int SolveProblemTwo(int& Timed, std::map<long unsigned int, std::v
             {   
                 //return the first Area that is able to pass the filtering check
                 if(Timed){std::cout << "Ending Problem Two:      ";PrintTimeNow();}
-                return it->first;
+                return IterateRects->first;
             }
         }
     }
-
+    
     return 0;
 }
 
