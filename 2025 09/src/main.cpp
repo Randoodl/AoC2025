@@ -103,7 +103,7 @@ std::map<long unsigned int, std::vector<std::vector<int>>>* GenerateAreasMap(std
     //No need to do each to all each iteration since a -> b is the same as a <- b
     for(int i_Line {0}; i_Line < MaxLine; ++i_Line)
     {
-        for(int i_FollowingLine {0}; i_FollowingLine < MaxLine; ++i_FollowingLine)
+        for(int i_FollowingLine {i_Line + 1}; i_FollowingLine < MaxLine; ++i_FollowingLine)
         {
             std::vector<int> Lines {i_Line, i_FollowingLine};
             long unsigned int Area = GetRectArea((*p_InputDataVector)[i_Line], (*p_InputDataVector)[i_FollowingLine]);
@@ -115,17 +115,168 @@ std::map<long unsigned int, std::vector<std::vector<int>>>* GenerateAreasMap(std
 }
 
 
-long unsigned int SolveProblemOne(std::map<long unsigned int, std::vector<std::vector<int>>>* p_MapOfPoorLifeChoices)
+std::vector<int> GetConnectedTileCoordinates(std::string Origin, std::string Projection)
 {
+    //Take in two tile coordinate strings and turn them into a single vector for processing
+
+    //Xo, Yo, Xp, Yp
+    std::vector<int> ExtractedInts {}; 
+
+    for(std::string XY : {Origin, Projection})
+    {
+        std::stringstream StringStream(XY);
+        std::string IntAsString;
+        while(getline(StringStream, IntAsString, ','))
+        {
+            ExtractedInts.emplace_back(std::stoi(IntAsString));
+        }
+    }
+
+    //Sort them in order from smallest to largest
+    if(ExtractedInts[0] > ExtractedInts[2])
+    {
+        int TempInt {ExtractedInts[0]};
+        ExtractedInts[0] = ExtractedInts[2];
+        ExtractedInts[2] = TempInt;
+    }
+    if(ExtractedInts[1] > ExtractedInts[3])
+    {
+        int TempInt {ExtractedInts[1]};
+        ExtractedInts[1] = ExtractedInts[3];
+        ExtractedInts[3] = TempInt;
+    }
+
+    return ExtractedInts;
+}
+
+
+std::map<int, std::vector<int>>* GetMapOfGreenTiles(std::vector<std::string>* p_InputDataVector)
+{
+    //Process all the input tile coordinates to generate a map where each X coordinate
+    //maps to the collection of Y coordinates
+
+    std::map<int, std::vector<int>>* p_MapOfTiles = new std::map<int, std::vector<int>> {};
+
+    //Setting bounds
+    int MaxLine {(int)p_InputDataVector->size()};
+
+    for(int i_Line {0}; i_Line < MaxLine; ++i_Line)
+    {
+        //Start from this tile
+        std::string OriginTile {(*p_InputDataVector)[i_Line]};
+        std::string ProjectTile;
+
+        if(i_Line == MaxLine - 1)
+        {
+            //Connect the last Tile to the first Tile
+            ProjectTile  = (*p_InputDataVector)[0];
+        }
+        else
+        {
+            //Connect this Tile to the next Tile in the input
+            ProjectTile = (*p_InputDataVector)[i_Line + 1];
+        }
+
+        //Get the rectangle coordinates from smallest XY corner to largest XY corner
+        std::vector<int> ExtractedInts {GetConnectedTileCoordinates(OriginTile, ProjectTile)};
+
+        //March along the Y axis if X is constant
+        if(ExtractedInts[0] == ExtractedInts[2])
+        {
+            for(int StepY {ExtractedInts[1]}; StepY <= ExtractedInts[3]; ++StepY)
+            {
+                (*p_MapOfTiles)[ExtractedInts[0]].emplace_back(StepY);
+            }
+        }
+        //March along the X axis if Y is constant
+        else
+        {
+            for(int StepX {ExtractedInts[0]}; StepX <= ExtractedInts[2]; ++StepX)
+            {
+                (*p_MapOfTiles)[StepX].emplace_back(ExtractedInts[1]);
+            }
+        }
+    }
+
+    return p_MapOfTiles;
+}
+
+
+long unsigned int SolveProblemOne(int& Timed, std::map<long unsigned int, std::vector<std::vector<int>>>* p_MapOfPoorLifeChoices)
+{
+    if(Timed){std::cout << "Starting Problem One:    ";PrintTimeNow();}
     //Look, I made this.
-    // have to live with this.
+    //I have to live with this.
     //How do you think >I< feel, writing this?
 
     //Extract the final key 
     auto LastPair {std::prev(p_MapOfPoorLifeChoices->end())};
     long unsigned int LargestArea = LastPair->first;
 
+    if(Timed){std::cout << "Ending Problem One:      ";PrintTimeNow();}
     return LargestArea;
+}
+
+
+long unsigned int SolveProblemTwo(int& Timed, std::map<long unsigned int, std::vector<std::vector<int>>>* p_MapOfPoorLifeChoices, std::map<int, std::vector<int>>* p_MapOfGreenTiles,
+                                  std::vector<std::string>* p_InputDataVector)
+{
+    //And here we come now at the rising cresendo of this opera of inefficiency
+    //The magnum opus of making sure my laptop hates me
+    //Starting with the largest area, for the points listed that make up the area
+    //check if any of the green tiles are within the body of the rect (perimeter is fine)
+
+    if(Timed){std::cout << "Starting Problem Two:    ";PrintTimeNow();}
+    
+    //Iterate over the map in reverse order
+    for(auto it {p_MapOfPoorLifeChoices->rbegin()}; it != p_MapOfPoorLifeChoices->rend(); ++it)
+    {
+//std::cout << "..Starting the search for Areas of size: " << it->first << std::endl;
+        //For each area, look at each two tiles that make up that area
+        for(std::vector<int> PairOfTileLines : it->second)
+        {
+            bool Fits {true};
+
+            std::string Origin  {(*p_InputDataVector)[PairOfTileLines[0]]};
+            std::string Project {(*p_InputDataVector)[PairOfTileLines[1]]};
+//std::cout << "....Considering points: (" << Origin << "), (" << Project << ")\n";
+            //{Xmin, Ymin, Xmax, Ymax}
+            std::vector<int> ExtractedInts {GetConnectedTileCoordinates(Origin, Project)};
+
+            //Check EACH KNOWN GREEN TILE if it is within the body of the rect that can be constructed from the connected tiles
+            //It is ok to cry
+
+            for(auto GreenTileX : (*p_MapOfGreenTiles))
+            {//std::cout << "......Lookup for X: " << GreenTileX.first << std::endl;
+                if(GreenTileX.first > ExtractedInts[0] && GreenTileX.first < ExtractedInts[2]) 
+                {
+                    for(int GreenTileY : GreenTileX.second)
+                    {
+                        if(GreenTileY > ExtractedInts[1] && GreenTileY < ExtractedInts[3])
+                        {
+                            //std::cout << "........Invalid point: [" << GreenTileX.first << ", " << GreenTileY << "]\n"; 
+                            //There exists a green tile within the body of the rectangle, so it cannot be valid
+                            Fits = false;
+                            break;
+                        }
+                    }
+                } 
+                if(!Fits)
+                {
+                    //stop checking invalid rectangles
+                    break;
+                }
+            }
+            if(Fits)
+            {   
+                //return the first Area that is able to pass the filtering check
+                if(Timed){std::cout << "Ending Problem Two:      ";PrintTimeNow();}
+                return it->first;
+            }
+        }
+    }
+
+    return 0;
 }
 
 
@@ -143,15 +294,21 @@ int main(int argc, char* argv[])
     //It is also the thing that makes me wonder if I should keep trudging on doing AoC puzzles
     std::map<long unsigned int, std::vector<std::vector<int>>>* p_MapOfPoorLifeChoices {GenerateAreasMap(p_InputDataVector)};
 
-    std::cout << "Problem One:\n" << SolveProblemOne(p_MapOfPoorLifeChoices) << "\n";
+    //This is a map linking all [x] tiles to their collection of available [y] tiles
+    //There WILL be around 500 duplicates scattered about the [y] vectors
+    //but I am a tired man and simply wish to move on
+    std::map<int, std::vector<int>>* p_MapOfGreenTiles {GetMapOfGreenTiles(p_InputDataVector)};
 
-    
+    std::cout << "Problem One:\n" << SolveProblemOne(Timed, p_MapOfPoorLifeChoices) << "\n";
+    std::cout << "Problem Two:\n" << SolveProblemTwo(Timed, p_MapOfPoorLifeChoices, p_MapOfGreenTiles, p_InputDataVector) << std::endl;
 
     //Cleaning up
     delete p_InputDataVector;
     p_InputDataVector = nullptr;
     delete p_MapOfPoorLifeChoices;
     p_MapOfPoorLifeChoices = nullptr;
+    delete p_MapOfGreenTiles;
+    p_MapOfGreenTiles = nullptr;
 
 
     std::cout << "\nTotal runtime: " <<  1.0 * clock() /CLOCKS_PER_SEC << "s\n";
